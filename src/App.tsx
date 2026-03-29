@@ -446,7 +446,7 @@ export default function App() {
                           ? 'bg-indigo-600 text-white rounded-tr-none' 
                           : 'bg-white border border-slate-200 text-slate-800 rounded-tl-none'
                       }`}>
-                        <div className="break-words markdown-body">
+                        <div className={`break-words ${message.role === 'model' ? 'markdown-body' : ''}`}>
                           {message.role === 'model' ? (
                             <ReactMarkdown 
                               remarkPlugins={[remarkGfm, remarkMath]}
@@ -455,7 +455,7 @@ export default function App() {
                               {message.text}
                             </ReactMarkdown>
                           ) : (
-                            <div className="whitespace-pre-wrap">{message.text}</div>
+                            <div className="whitespace-pre-wrap text-white font-medium">{message.text}</div>
                           )}
                         </div>
                       </div>
