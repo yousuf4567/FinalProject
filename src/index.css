@@ -1,0 +1,59 @@
+@import "tailwindcss";
+
+@layer components {
+  .markdown-body {
+    @apply text-sm leading-relaxed text-slate-800;
+  }
+  .markdown-body h1 {
+    @apply text-xl font-bold mt-6 mb-4 text-slate-900 border-b border-slate-100 pb-2;
+  }
+  .markdown-body h2 {
+    @apply text-lg font-bold mt-5 mb-3 text-slate-900;
+  }
+  .markdown-body h3 {
+    @apply text-base font-bold mt-4 mb-2 text-slate-900;
+  }
+  .markdown-body p {
+    @apply mb-4 last:mb-0;
+  }
+  .markdown-body ul {
+    @apply list-disc pl-5 mb-4 space-y-1;
+  }
+  .markdown-body ol {
+    @apply list-decimal pl-5 mb-4 space-y-1;
+  }
+  .markdown-body li {
+    @apply mb-1;
+  }
+  .markdown-body strong {
+    @apply font-bold text-slate-900;
+  }
+  .markdown-body code {
+    @apply bg-slate-100 px-1.5 py-0.5 rounded font-mono text-xs text-indigo-600;
+  }
+  .markdown-body blockquote {
+    @apply border-l-4 border-indigo-200 pl-4 italic text-slate-600 mb-4 bg-indigo-50/30 py-1 rounded-r;
+  }
+  
+  /* Table Styles */
+  .markdown-body table {
+    @apply w-full border-collapse mb-4 overflow-hidden rounded-lg border border-slate-200;
+  }
+  .markdown-body th {
+    @apply bg-slate-50 border border-slate-200 px-4 py-2 text-left font-bold text-slate-700 text-xs uppercase tracking-wider;
+  }
+  .markdown-body td {
+    @apply border border-slate-200 px-4 py-2 text-slate-600 text-sm;
+  }
+  .markdown-body tr:nth-child(even) {
+    @apply bg-slate-50/50;
+  }
+
+  /* Math Styles */
+  .katex-display {
+    @apply my-4 overflow-x-auto overflow-y-hidden py-2;
+  }
+  .katex {
+    @apply text-indigo-700 font-medium;
+  }
+}
