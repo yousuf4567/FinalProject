@@ -21,7 +21,8 @@ import {
   X,
   CheckCircle2,
   AlertCircle,
-  Loader2
+  Loader2,
+  Image as ImageIcon
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import * as pdfjs from 'pdfjs-dist';
@@ -42,6 +43,10 @@ interface Message {
   role: 'user' | 'model';
   text: string;
   timestamp: Date;
+  image?: {
+    data: string;
+    mimeType: string;
+  };
 }
 
 interface KnowledgeDocument {
@@ -101,8 +106,10 @@ export default function App() {
   const [knowledgeBase, setKnowledgeBase] = useState<KnowledgeDocument[]>([]);
   const [showKnowledgeBase, setShowKnowledgeBase] = useState(false);
   const [selectedSubject, setSelectedSubject] = useState<Subject>("General");
+  const [selectedImage, setSelectedImage] = useState<{ data: string; mimeType: string } | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const imageInputRef = useRef<HTMLInputElement>(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -189,22 +196,60 @@ export default function App() {
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      const base64Data = (reader.result as string).split(',')[1];
+      setSelectedImage({
+        data: base64Data,
+        mimeType: file.type
+      });
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handlePaste = (e: React.ClipboardEvent) => {
+    const items = e.clipboardData.items;
+    for (let i = 0; i < items.length; i++) {
+      if (items[i].type.indexOf('image') !== -1) {
+        const file = items[i].getAsFile();
+        if (file) {
+          const reader = new FileReader();
+          reader.onloadend = () => {
+            const base64Data = (reader.result as string).split(',')[1];
+            setSelectedImage({
+              data: base64Data,
+              mimeType: file.type
+            });
+          };
+          reader.readAsDataURL(file);
+        }
+      }
+    }
+  };
+
   const removeDocument = (id: string) => {
     setKnowledgeBase(prev => prev.filter(doc => doc.id !== id));
   };
 
   const handleSendMessage = async (text: string = input) => {
-    if (!text.trim() || isLoading) return;
+    if ((!text.trim() && !selectedImage) || isLoading) return;
 
     const userMessage: Message = {
       id: Date.now().toString(),
       role: 'user',
       text: text.trim(),
-      timestamp: new Date()
+      timestamp: new Date(),
+      image: selectedImage || undefined
     };
 
     setMessages(prev => [...prev, userMessage]);
     setInput('');
+    const currentImage = selectedImage;
+    setSelectedImage(null);
     setIsLoading(true);
 
     try {
@@ -215,25 +260,38 @@ export default function App() {
         ? `\n\nCONTEXT FROM UPLOADED SYLLABUS DOCUMENTS:\n${knowledgeBase.map(doc => `--- Document: ${doc.name} ---\n${doc.content.substring(0, 3000)}`).join('\n\n')}`
         : "";
 
+      const parts: any[] = [
+        { text: `You are an expert A/L (Advanced Level) mentor specializing in ${selectedSubject === 'General' ? 'all subjects' : selectedSubject}. 
+        Your goal is to provide accurate, detailed, and easy-to-understand explanations for students.
+        Use clear headings, bullet points, and examples where appropriate.
+        
+        ${selectedSubject !== 'General' ? `Focus your answers specifically on the ${selectedSubject} syllabus.` : ""}
+        
+        IMPORTANT: For any mathematical equations, formulas, or derivations, ALWAYS use LaTeX format wrapped in single dollar signs ($) for inline math and double dollar signs ($$) for block math.
+        Example: $E = mc^2$ or $$\frac{-b \pm \sqrt{b^2 - 4ac}}{2a}$$
+        
+        ${knowledgeBase.length > 0 ? "IMPORTANT: Use the provided context from the student's uploaded syllabus documents to answer the question more accurately. If the information is not in the documents, use your general knowledge but prioritize the documents." : ""}
+        
+        ${context}
+        
+        Question: ${text}` }
+      ];
+
+      if (currentImage) {
+        parts.push({
+          inlineData: {
+            data: currentImage.data,
+            mimeType: currentImage.mimeType
+          }
+        });
+      }
+
       const response = await genAI.models.generateContent({
         model,
         contents: [
           {
             role: 'user',
-            parts: [{ text: `You are an expert A/L (Advanced Level) mentor specializing in ${selectedSubject === 'General' ? 'all subjects' : selectedSubject}. 
-            Your goal is to provide accurate, detailed, and easy-to-understand explanations for students.
-            Use clear headings, bullet points, and examples where appropriate.
-            
-            ${selectedSubject !== 'General' ? `Focus your answers specifically on the ${selectedSubject} syllabus.` : ""}
-            
-            IMPORTANT: For any mathematical equations, formulas, or derivations, ALWAYS use LaTeX format wrapped in single dollar signs ($) for inline math and double dollar signs ($$) for block math.
-            Example: $E = mc^2$ or $$\frac{-b \pm \sqrt{b^2 - 4ac}}{2a}$$
-            
-            ${knowledgeBase.length > 0 ? "IMPORTANT: Use the provided context from the student's uploaded syllabus documents to answer the question more accurately. If the information is not in the documents, use your general knowledge but prioritize the documents." : ""}
-            
-            ${context}
-            
-            Question: ${text}` }]
+            parts
           }
         ],
         config: {
@@ -447,6 +505,16 @@ export default function App() {
                           : 'bg-white border border-slate-200 text-slate-800 rounded-tl-none'
                       }`}>
                         <div className={`break-words ${message.role === 'model' ? 'markdown-body' : ''}`}>
+                          {message.image && (
+                            <div className="mb-2 rounded-lg overflow-hidden border border-white/20">
+                              <img 
+                                src={`data:${message.image.mimeType};base64,${message.image.data}`} 
+                                alt="User upload" 
+                                className="max-w-full h-auto max-h-64 object-contain"
+                                referrerPolicy="no-referrer"
+                              />
+                            </div>
+                          )}
                           {message.role === 'model' ? (
                             <ReactMarkdown 
                               remarkPlugins={[remarkGfm, remarkMath]}
@@ -514,6 +582,22 @@ export default function App() {
 
           {/* Input Area */}
           <div className="p-4 sm:p-6 bg-white border-t border-slate-200">
+            {selectedImage && (
+              <div className="mb-3 relative inline-block">
+                <img 
+                  src={`data:${selectedImage.mimeType};base64,${selectedImage.data}`} 
+                  alt="Preview" 
+                  className="h-20 w-20 object-cover rounded-xl border-2 border-indigo-100 shadow-sm"
+                  referrerPolicy="no-referrer"
+                />
+                <button 
+                  onClick={() => setSelectedImage(null)}
+                  className="absolute -top-2 -right-2 bg-red-500 text-white p-1 rounded-full shadow-md hover:bg-red-600 transition-colors"
+                >
+                  <X size={12} />
+                </button>
+              </div>
+            )}
             {knowledgeBase.length > 0 && (
               <div className="mb-3 flex items-center gap-2 text-[10px] font-bold text-indigo-600 bg-indigo-50 px-3 py-1.5 rounded-lg border border-indigo-100 w-fit">
                 <CheckCircle2 size={12} />
@@ -525,9 +609,24 @@ export default function App() {
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={handleKeyPress}
+                onPaste={handlePaste}
                 placeholder="Ask a question from your syllabus..."
-                className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3 pr-14 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all resize-none min-h-[56px] max-h-32"
+                className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3 pl-12 pr-14 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all resize-none min-h-[56px] max-h-32"
                 rows={1}
+              />
+              <button
+                onClick={() => imageInputRef.current?.click()}
+                className="absolute left-2 bottom-2 p-2 text-slate-400 hover:text-indigo-600 transition-colors"
+                title="Upload Image"
+              >
+                <ImageIcon size={20} />
+              </button>
+              <input 
+                type="file" 
+                ref={imageInputRef} 
+                onChange={handleImageUpload} 
+                accept="image/*" 
+                className="hidden" 
               />
               <button
                 onClick={() => handleSendMessage()}
