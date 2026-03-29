@@ -51,20 +51,46 @@ interface KnowledgeDocument {
   type: 'pdf' | 'text';
 }
 
-const SUGGESTED_QUESTIONS = [
-  "Explain the structure of a plant cell.",
-  "What are Newton's Three Laws of Motion?",
-  "How does the demand and supply curve work?",
-  "Explain the process of photosynthesis.",
-  "What is the difference between mitosis and meiosis?"
-];
+const SUBJECTS = ["General", "Chemistry", "Physics", "Biology"] as const;
+type Subject = typeof SUBJECTS[number];
+
+const SUBJECT_QUESTIONS: Record<Subject, string[]> = {
+  General: [
+    "Explain the structure of a plant cell.",
+    "What are Newton's Three Laws of Motion?",
+    "How does the demand and supply curve work?",
+    "Explain the process of photosynthesis.",
+    "What is the difference between mitosis and meiosis?"
+  ],
+  Chemistry: [
+    "Explain the periodic trends in electronegativity.",
+    "What is the difference between ionic and covalent bonding?",
+    "Explain the concept of chemical equilibrium.",
+    "How do you calculate the pH of a strong acid?",
+    "What are the properties of transition metals?"
+  ],
+  Physics: [
+    "Explain the principle of conservation of energy.",
+    "What is the difference between scalar and vector quantities?",
+    "Explain Ohm's Law and its applications.",
+    "How does the Doppler effect work?",
+    "What is the significance of the photoelectric effect?"
+  ],
+  Biology: [
+    "Describe the structure and function of DNA.",
+    "Explain the stages of the nitrogen cycle.",
+    "What is the role of enzymes in biological reactions?",
+    "Describe the human circulatory system.",
+    "Explain the theory of natural selection."
+  ]
+};
 
 export default function App() {
   const [messages, setMessages] = useState<Message[]>([
     {
       id: '1',
       role: 'model',
-      text: "Hello! I'm your A/L Syllabus Assistant. Upload your syllabus documents (PDF or TXT) and I'll use them to provide more accurate answers. What would you like to learn today?",
+      text: "Hello! I'm your A/L mentor. Upload your syllabus documents (PDF or TXT) and select a subject to get started. What would you like to learn today?",
       timestamp: new Date()
     }
   ]);
@@ -74,6 +100,7 @@ export default function App() {
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [knowledgeBase, setKnowledgeBase] = useState<KnowledgeDocument[]>([]);
   const [showKnowledgeBase, setShowKnowledgeBase] = useState(false);
+  const [selectedSubject, setSelectedSubject] = useState<Subject>("General");
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -193,9 +220,11 @@ export default function App() {
         contents: [
           {
             role: 'user',
-            parts: [{ text: `You are an expert A/L (Advanced Level) syllabus tutor. 
+            parts: [{ text: `You are an expert A/L (Advanced Level) mentor specializing in ${selectedSubject === 'General' ? 'all subjects' : selectedSubject}. 
             Your goal is to provide accurate, detailed, and easy-to-understand explanations for students.
             Use clear headings, bullet points, and examples where appropriate.
+            
+            ${selectedSubject !== 'General' ? `Focus your answers specifically on the ${selectedSubject} syllabus.` : ""}
             
             IMPORTANT: For any mathematical equations, formulas, or derivations, ALWAYS use LaTeX format wrapped in single dollar signs ($) for inline math and double dollar signs ($$) for block math.
             Example: $E = mc^2$ or $$\frac{-b \pm \sqrt{b^2 - 4ac}}{2a}$$
@@ -250,7 +279,7 @@ export default function App() {
             <GraduationCap size={24} />
           </div>
           <div>
-            <h1 className="text-lg font-bold text-slate-900 leading-tight">A/L Syllabus AI</h1>
+            <h1 className="text-lg font-bold text-slate-900 leading-tight">A/L mentor</h1>
             <p className="text-xs text-slate-500 font-medium">Your Personal Study Tutor</p>
           </div>
         </div>
@@ -378,6 +407,23 @@ export default function App() {
         </AnimatePresence>
 
         <main className="flex-1 overflow-hidden flex flex-col max-w-4xl mx-auto w-full relative">
+          {/* Subject Toggles */}
+          <div className="px-6 py-3 bg-white border-b border-slate-100 flex items-center gap-2 overflow-x-auto no-scrollbar">
+            {SUBJECTS.map((subject) => (
+              <button
+                key={subject}
+                onClick={() => setSelectedSubject(subject)}
+                className={`px-4 py-1.5 rounded-full text-xs font-semibold transition-all whitespace-nowrap ${
+                  selectedSubject === subject
+                    ? 'bg-indigo-600 text-white shadow-md'
+                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                }`}
+              >
+                {subject}
+              </button>
+            ))}
+          </div>
+
           {/* Messages Area */}
           <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6">
             <AnimatePresence initial={false}>
@@ -451,7 +497,7 @@ export default function App() {
                 Try asking about
               </p>
               <div className="flex flex-wrap gap-2">
-                {SUGGESTED_QUESTIONS.map((q, i) => (
+                {SUBJECT_QUESTIONS[selectedSubject].map((q, i) => (
                   <button
                     key={i}
                     onClick={() => handleSendMessage(q)}
